@@ -15,7 +15,7 @@ else:
 
 # ==================== 2. AQ. 憑證與 v1beta 專用連線函式 ====================
 def call_gemini_api(prompt_text):
-    # 修正模型路徑：在 v1beta 中，必須完整寫成 models/gemini-1.5-flash
+    # 【終極修正】：精確對齊 Google v1beta 的 API 路由規範
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     
     # 使用已經驗證成功的 X-Goog-Api-Key 傳遞機制
