@@ -15,7 +15,7 @@ else:
 
 # ==================== 2. AQ. 憑證與 v1beta 專用連線函式 ====================
 def call_gemini_api(prompt_text):
-    # 【終極修正】：精確對齊 Google v1beta 的 API 路由規範
+    # 【最關鍵路徑校正】：精確對齊 Google 規範的 models/gemini-1.5-flash 節點路徑
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     
     # 使用已經驗證成功的 X-Goog-Api-Key 傳遞機制
@@ -58,7 +58,7 @@ if not st.session_state.game_started:
                 setup_prompt = """
                 請從【特定球類運動】、【特定水果】、【特定生活用品】中，
                 隨機秘密挑選一個明確的物品作為『海龜湯謎底』。
-                請直接輸出該物品名稱即可，不要有任何多餘的字（例如直接輸出：西瓜）。
+                請直接輸出該物品名稱即可，不要有任何多餘的字與標點符號（例如直接輸出：西瓜）。
                 """
                 secret_word = call_gemini_api(setup_prompt).strip().replace("「", "").replace("」", "").replace("答案是：", "")
                 
@@ -99,7 +99,7 @@ else:
                 st.error("❌ 提問失敗：對抗賽防禦機制限制提問字數不可超過 50 個字！")
             st.stop()
 
-        # 設定提問延遲 1 秒
+        # 設定提問延遲 1秒
         time.sleep(1.0)
 
         with st.chat_message("user"):
