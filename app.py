@@ -1,7 +1,8 @@
 import streamlit as st
-import requests
-import json
 import time
+# 導入 Google 2026 最新官方 GenAI SDK
+from google import genai
+from google.genai import types
 
 # ==================== 1. 初始化與頁面設定 ====================
 st.set_page_config(page_title="AI 海龜湯防禦系統", page_icon="🐢", layout="centered")
@@ -13,30 +14,28 @@ else:
     st.error("🔑 請先在 Streamlit 進階設定的 Secrets 中設定 `GEMINI_API_KEY`！")
     st.stop()
 
-# ==================== 2. AQ. 憑證與 v1beta 專用連線函式 ====================
+# ==================== 2. 使用官方 SDK 初始化 Client ====================
+# 【核心修正】：針對 AQ. 憑證，必須同時指定 api_key 與 http_options 的 headers，雙重保險繞過 401
+try:
+    client = genai.Client(
+        api_key=api_key_val,
+        http_options={
+            "headers": {
+                "X-Goog-Api-Key": api_key_val
+            }
+        }
+    )
+except Exception as e:
+    st.error(f"SDK 初始化失敗：{e}")
+    st.stop()
+
 def call_gemini_api(prompt_text):
-    # 【最關鍵路徑校正】：精確對齊 Google 規範的 models/gemini-1.5-flash 節點路徑
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-    
-    # 使用已經驗證成功的 X-Goog-Api-Key 傳遞機制
-    headers = {
-        "X-Goog-Api-Key": api_key_val,
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt_text}]
-        }]
-    }
-    
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
-    
-    if response.status_code == 200:
-        res_json = response.json()
-        return res_json["candidates"][0]["content"]["parts"][0]["text"]
-    else:
-        raise Exception(f"API 呼叫失敗，狀態碼 {response.status_code}: {response.text}")
+    # 使用 SDK 呼叫，模型名稱直接帶 gemini-1.5-flash，不需處理網址與版本
+    response = client.models.generate_content(
+        model='gemini-1.5-flash',
+        contents=prompt_text,
+    )
+    return response.text
 
 # ==================== 3. 遊戲核心狀態初始化 ====================
 if "game_started" not in st.session_state:
@@ -99,7 +98,7 @@ else:
                 st.error("❌ 提問失敗：對抗賽防禦機制限制提問字數不可超過 50 個字！")
             st.stop()
 
-        # 設定提問延遲 1秒
+        # 設定提問延遲 1 秒
         time.sleep(1.0)
 
         with st.chat_message("user"):
