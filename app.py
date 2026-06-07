@@ -1,6 +1,5 @@
 import streamlit as st
-import requests
-import json
+import google.generativeai as genai
 import time
 
 # ==================== 1. 初始化與頁面設定 ====================
@@ -9,33 +8,21 @@ st.set_page_config(page_title="AI 海龜湯防禦系統", page_icon="🐢", layo
 # 從後台 Secrets 讀取秘密金鑰
 if "GEMINI_API_KEY" in st.secrets:
     api_key_val = st.secrets["GEMINI_API_KEY"]
+    # 核心修正：使用官方 SDK 配置金鑰，完美相容 AQ. 格式
+    genai.configure(api_key=api_key_val)
 else:
     st.error("🔑 請先在 Streamlit 進階設定的 Secrets 中設定 `GEMINI_API_KEY`！")
     st.stop()
 
-# ==================== 原生 HTTP 直連函式 ====================
+# ==================== 官方 SDK 直連函式 ====================
 def call_gemini_api(prompt_text):
-    # 使用 v1 正式版 API 端點，將金鑰直接帶在網址後面，完美支援 AQ. 金鑰
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key_val}"
-    
-    headers = {
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt_text}]
-        }]
-    }
-    
-    # 發送 POST 請求
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
-    
-    if response.status_code == 200:
-        res_json = response.json()
-        return res_json["candidates"][0]["content"]["parts"][0]["text"]
-    else:
-        raise Exception(f"API 呼叫失敗，狀態碼 {response.status_code}: {response.text}")
+    try:
+        # 強制指定使用穩定版 1.5-flash 模型
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt_text)
+        return response.text
+    except Exception as e:
+        raise Exception(f"SDK 呼叫失敗: {e}")
 
 # ==================== 2. 遊戲核心狀態初始化 ====================
 if "game_started" not in st.session_state:
