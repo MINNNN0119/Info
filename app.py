@@ -1,23 +1,34 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import json
+import time
 
-# 1. 設定頁面
-st.set_page_config(page_title="AI 海龜湯防禦系統", page_icon="🐢")
+# 1. 初始化頁面
+st.set_page_config(page_title="AI 海龜湯防禦系統", page_icon="🐢", layout="centered")
 
-# 2. 獲取 API 金鑰
+# 2. 讀取 Secrets 中的 API 金鑰
 api_key = st.secrets.get("GEMINI_API_KEY")
-
 if not api_key:
     st.error("請在 Streamlit Secrets 設定 GEMINI_API_KEY")
     st.stop()
 
-# 3. 基礎初始化（移除所有導致 TypeError 的額外參數）
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-1.5-flash')
-
+# 3. 核心 API 呼叫函式 (直接透過 POST 控制路由)
 def call_gemini_api(prompt_text):
-    response = model.generate_content(prompt_text)
-    return response.text
+    # 【關鍵修正】：直接指定 v1 正式版路徑，繞過 SDK 的自動路由錯誤
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+    
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{"parts": [{"text": prompt_text}]}]
+    }
+    
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    
+    if response.status_code == 200:
+        res_json = response.json()
+        return res_json["candidates"][0]["content"]["parts"][0]["text"]
+    else:
+        raise Exception(f"API 呼叫失敗 (狀態碼 {response.status_code}): {response.text}")
 
 # 4. 遊戲邏輯與顯示
 if "game_started" not in st.session_state:
@@ -40,7 +51,10 @@ if not st.session_state.game_started:
 else:
     st.warning(f"🤫 後台謎底：**{st.session_state.target_answer}**")
     
-    # 顯示對話與輸入
+    if st.button("🔄 重置遊戲"):
+        st.session_state.game_started = False
+        st.rerun()
+
     for chat in st.session_state.chat_history:
         with st.chat_message(chat["role"]):
             st.write(chat["content"])
@@ -49,7 +63,6 @@ else:
         with st.chat_message("user"):
             st.write(user_input)
         
-        # 建立上下文
         defense_prompt = f"謎底是：{st.session_state.target_answer}。只能回答「是」、「不是」、「與故事/題目無關」或「不完全是」。玩家提問：{user_input}"
         
         with st.chat_message("assistant"):
