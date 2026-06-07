@@ -112,7 +112,7 @@ if user_query := st.chat_input("請輸入您的提問..."):
 
                 # 呼叫最新版 Client 的聊天生成
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='Gemini 3.1 Flash Lite',
                     contents=st.session_state.history_contents,
                     config=types.GenerateContentConfig(
                         system_instruction=full_instruction
