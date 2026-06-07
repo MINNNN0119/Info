@@ -13,13 +13,15 @@ else:
     st.error("🔑 請先在 Streamlit 進階設定的 Secrets 中設定 `GEMINI_API_KEY`！")
     st.stop()
 
-# ==================== 底層 REST API 直連函式 ====================
+# ==================== AQ. 憑證專用 REST API 直連函式 ====================
 def call_gemini_api(prompt_text):
-    # 核心大修正：改用最純粹的 v1 正式版 REST API 路由，將 AQ. 金鑰作為網址參數傳遞
-    # 這樣可以避開 SDK 的參數限制，同時繞過 v1beta 的 404 找不到模型錯誤
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key_val}"
+    # 使用 v1 正式版 API 端點，網址不要帶 key 參數
+    url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
     
+    # 核心大修正：AQ. 憑證必須作為 Bearer Token 放入 Authorization Header 中
+    # 這樣才能通過 Google Cloud 服務帳戶的 OAuth 2.0 安全驗證，徹底解決 401 錯誤
     headers = {
+        "Authorization": f"Bearer {api_key_val}",
         "Content-Type": "application/json"
     }
     
@@ -29,7 +31,7 @@ def call_gemini_api(prompt_text):
         }]
     }
     
-    # 使用 Python 內建的 requests 發送 POST 請求
+    # 發送 POST 請求
     response = requests.post(url, headers=headers, data=json.dumps(payload))
     
     if response.status_code == 200:
