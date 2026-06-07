@@ -13,13 +13,12 @@ else:
     st.error("🔑 請先在 Streamlit 進階設定的 Secrets 中設定 `GEMINI_API_KEY`！")
     st.stop()
 
-# ==================== 核心大修正：解鎖 AQ. 憑證的網際網路請求 ====================
+# ==================== 2. AQ. 憑證與 v1beta 專用連線函式 ====================
 def call_gemini_api(prompt_text):
-    # 使用 v1beta 正式端點
+    # 修正模型路徑：在 v1beta 中，必須完整寫成 models/gemini-1.5-flash
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     
-    # 【最關鍵修正】：AQ. 憑證不能當成 Bearer，必須放入 "X-Goog-Api-Key" 欄位中！
-    # 這樣才能繞過 401 ACCESS_TOKEN_TYPE_UNSUPPORTED 錯誤
+    # 使用已經驗證成功的 X-Goog-Api-Key 傳遞機制
     headers = {
         "X-Goog-Api-Key": api_key_val,
         "Content-Type": "application/json"
@@ -31,7 +30,6 @@ def call_gemini_api(prompt_text):
         }]
     }
     
-    # 發送純粹的 POST 請求
     response = requests.post(url, headers=headers, data=json.dumps(payload))
     
     if response.status_code == 200:
@@ -40,13 +38,13 @@ def call_gemini_api(prompt_text):
     else:
         raise Exception(f"API 呼叫失敗，狀態碼 {response.status_code}: {response.text}")
 
-# ==================== 2. 遊戲核心狀態初始化 ====================
+# ==================== 3. 遊戲核心狀態初始化 ====================
 if "game_started" not in st.session_state:
     st.session_state.game_started = False
     st.session_state.target_answer = ""
     st.session_state.chat_history = []
 
-# ==================== 3. 畫面排版：未開始畫面 ====================
+# ==================== 4. 畫面排版：未開始畫面 ====================
 st.title("🐢 AI 海龜湯（情境猜謎）防禦系統")
 st.caption("🛡️ 藍軍期末考對抗賽專用版 | 具備提示注入防禦機制")
 
@@ -71,7 +69,7 @@ if not st.session_state.game_started:
             except Exception as e:
                 st.error(f"謎底生成失敗！錯誤訊息：{e}")
 
-# ==================== 4. 畫面排版：遊戲進行中 (Chat UI) ====================
+# ==================== 5. 畫面排版：遊戲進行中 (Chat UI) ====================
 else:
     st.info("""💡 **遊戲規則**：請利用下方的對話框向 AI 提問。AI 只能回答「是」、「不是」、「與故事/題目無關」或「不完全是」。""")
     st.warning(f"🤫 藍軍後台秘密謎底提示：**【 {st.session_state.target_answer} 】**（請絕對不要洩漏給攻擊方）")
