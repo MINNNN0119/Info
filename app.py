@@ -1,7 +1,8 @@
 import os
 import time
+import json
 from google import genai
-from google.genai import types
+from google import types
 import streamlit as st
 
 # ==========================================
@@ -12,7 +13,7 @@ import streamlit as st
 if "GEMINI_API_KEY" in st.secrets:
     GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
 else:
-    # 這裡保留你原本的寫法，方便你 local 測試時如果沒設定 secrets 也能跑
+    # 保留原本的寫法，方便 local 測試時如果沒設定 secrets 也能跑
     GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 if not GOOGLE_API_KEY:
@@ -56,24 +57,57 @@ SYSTEM_INSTRUCTION = """
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "secret_target" not in st.session_state:
-    # 讓最新版 Gemini 生成秘密謎底
-    try:
-        response = client.models.generate_content(
-            model='gemini-3.1-flash-lite',
-            contents='請隨機生成一個明確的日常生活用品、水果、或球類運動名稱作為海龜湯謎底（例如：西瓜、籃球、指甲剪）。只需要吐出這個名稱本身，不要有任何標點符號或額外文字。'
-        )
-        st.session_state.secret_target = response.text.strip()
-    except Exception as e:
-        st.session_state.secret_target = "西瓜"  # 穩定備用機制
-
 # 確保對話歷程物件存在
 if "history_contents" not in st.session_state:
     st.session_state.history_contents = []
 
+# 動態生成秘密謎底與文青風故事描述
+if "secret_target" not in st.session_state:
+    try:
+        prompt = """
+        請隨機挑選一個明確的『日常生活用品』、『水果』或『球類運動』作為海龜湯謎底（例如：枕頭、西瓜、籃球）。
+        並針對這個謎底，編寫一段大約 50 到 100 字、語氣帶點神祕感、擬人化或隱喻的文青風「故事線索」，千萬不要直接講出答案，要讓玩家好猜。
+        
+        請嚴格使用以下 JSON 格式回傳，不要有任何 Markdown 外殼（不要包 ```json）：
+        {
+            "target": "謎底名稱",
+            "category": "分類（例如：生活物品、水果、運動器材）",
+            "clue": "故事線索描述"
+        }
+        """
+        
+        response = client.models.generate_content(
+            model='gemini-3.1-flash-lite',
+            contents=prompt
+        )
+        
+        # 解析回傳的 JSON 資料
+        data = json.loads(response.text.strip())
+        st.session_state.secret_target = data["target"]
+        st.session_state.secret_category = data["category"]
+        st.session_state.secret_clue = data["clue"]
+        
+    except Exception as e:
+        # 穩定備用機制
+        st.session_state.secret_target = "西瓜"
+        st.session_state.secret_category = "水果"
+        st.session_state.secret_clue = "它身披綠色條紋的外衣，內心卻是一片熾熱的鮮紅，在烈日炎炎的夏日裡，它用甜美多汁的清涼，安撫著每一顆渴望解渴的心。"
+
 # ==========================================
-# 3. 前端 UI 排版（對話歷程完整顯示）
+# 3. 前端 UI 排版（謎題公告與對話歷程完整顯示）
 # ==========================================
+
+# 固定的崇恩主持人題目公告區
+st.write("---")
+with st.chat_message("assistant", avatar="🐢"):
+    st.write("哼！各位玩家，我是崇恩，海龜湯的主持人。規則都記清楚了嗎？我可沒耐心重複。")
+    st.write("現在，請聽題！")
+    st.markdown(f"這是一件 **『{st.session_state.secret_category}』**。")
+    st.info(f"「{st.session_state.secret_clue}」")
+    st.write("請開始提問！記住，我只回答「是」、「不是」、「與故事/題目無關」或「不完全是」。")
+st.write("---")
+
+# 顯示過去的對話歷史紀錄
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
