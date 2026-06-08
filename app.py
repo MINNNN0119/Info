@@ -2,7 +2,7 @@ import os
 import time
 import json
 from google import genai
-from google import types
+from google.genai import types  # 改為從 google.genai 引入 types
 import streamlit as st
 
 # ==========================================
